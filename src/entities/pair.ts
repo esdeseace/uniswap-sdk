@@ -9,6 +9,8 @@ import {
   BigintIsh,
   FACTORY_ADDRESS,
   INIT_CODE_HASH,
+  UNISWAP_FACTORY_ADDRESS,
+  UNISWAP_INIT_CODE_HASH,
   MINIMUM_LIQUIDITY,
   ZERO,
   ONE,
@@ -27,7 +29,7 @@ export class Pair {
   public readonly liquidityToken: Token
   private readonly tokenAmounts: [TokenAmount, TokenAmount]
 
-  public static getAddress(tokenA: Token, tokenB: Token): string {
+  public static getAddress(tokenA: Token, tokenB: Token, isUniswap: boolean = false): string {
     const tokens = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA] // does safety checks
 
     if (PAIR_ADDRESS_CACHE?.[tokens[0].address]?.[tokens[1].address] === undefined) {
@@ -36,9 +38,9 @@ export class Pair {
         [tokens[0].address]: {
           ...PAIR_ADDRESS_CACHE?.[tokens[0].address],
           [tokens[1].address]: getCreate2Address(
-            FACTORY_ADDRESS,
+            isUniswap ? UNISWAP_FACTORY_ADDRESS : FACTORY_ADDRESS,
             keccak256(['bytes'], [pack(['address', 'address'], [tokens[0].address, tokens[1].address])]),
-            INIT_CODE_HASH
+            isUniswap ? UNISWAP_INIT_CODE_HASH : INIT_CODE_HASH
           )
         }
       }
@@ -47,7 +49,7 @@ export class Pair {
     return PAIR_ADDRESS_CACHE[tokens[0].address][tokens[1].address]
   }
 
-  public constructor(tokenAmountA: TokenAmount, tokenAmountB: TokenAmount) {
+  public constructor(tokenAmountA: TokenAmount, tokenAmountB: TokenAmount, isUniswap: boolean = false) {
     const tokenAmounts = tokenAmountA.token.sortsBefore(tokenAmountB.token) // does safety checks
       ? [tokenAmountA, tokenAmountB]
       : [tokenAmountB, tokenAmountA]
@@ -55,9 +57,10 @@ export class Pair {
       tokenAmounts[0].token.chainId,
       Pair.getAddress(tokenAmounts[0].token, tokenAmounts[1].token),
       18,
-      'ANS',
-      'Anonyswap'
+      isUniswap ? 'UNI-V2' : 'ANS',
+      isUniswap ? 'Uniswap V2' : 'Anonyswap'
     )
+
     this.tokenAmounts = tokenAmounts as [TokenAmount, TokenAmount]
   }
 
