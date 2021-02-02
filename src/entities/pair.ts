@@ -23,7 +23,13 @@ import { sqrt, parseBigintIsh } from '../utils'
 import { InsufficientReservesError, InsufficientInputAmountError } from '../errors'
 import { Token } from './token'
 
-let PAIR_ADDRESS_CACHE: { [token0Address: string]: { [token1Address: string]: string } } = {}
+const UNISWAP = 'uniswap'
+const ANONY = 'anony'
+
+let PAIR_ADDRESS_CACHE: {
+  [ANONY]: { [token0Address: string]: { [token1Address: string]: string } }
+  [UNISWAP]: { [token0Address: string]: { [token1Address: string]: string } }
+} = { [ANONY]: {}, [UNISWAP]: {} }
 
 export class Pair {
   public readonly liquidityToken: Token
@@ -31,22 +37,26 @@ export class Pair {
 
   public static getAddress(tokenA: Token, tokenB: Token, isUniswap: boolean = false): string {
     const tokens = tokenA.sortsBefore(tokenB) ? [tokenA, tokenB] : [tokenB, tokenA] // does safety checks
+    const dexSwap = isUniswap ? UNISWAP : ANONY
 
-    if (PAIR_ADDRESS_CACHE?.[tokens[0].address]?.[tokens[1].address] === undefined) {
+    if (PAIR_ADDRESS_CACHE[dexSwap]?.[tokens[0].address]?.[tokens[1].address] === undefined) {
       PAIR_ADDRESS_CACHE = {
         ...PAIR_ADDRESS_CACHE,
-        [tokens[0].address]: {
-          ...PAIR_ADDRESS_CACHE?.[tokens[0].address],
-          [tokens[1].address]: getCreate2Address(
-            isUniswap ? UNISWAP_FACTORY_ADDRESS : FACTORY_ADDRESS,
-            keccak256(['bytes'], [pack(['address', 'address'], [tokens[0].address, tokens[1].address])]),
-            isUniswap ? UNISWAP_INIT_CODE_HASH : INIT_CODE_HASH
-          )
+        [dexSwap]: {
+          ...PAIR_ADDRESS_CACHE?.[dexSwap],
+          [tokens[0].address]: {
+            ...PAIR_ADDRESS_CACHE?.[dexSwap]?.[tokens[0].address],
+            [tokens[1].address]: getCreate2Address(
+              isUniswap ? UNISWAP_FACTORY_ADDRESS : FACTORY_ADDRESS,
+              keccak256(['bytes'], [pack(['address', 'address'], [tokens[0].address, tokens[1].address])]),
+              isUniswap ? UNISWAP_INIT_CODE_HASH : INIT_CODE_HASH
+            )
+          }
         }
       }
     }
 
-    return PAIR_ADDRESS_CACHE[tokens[0].address][tokens[1].address]
+    return PAIR_ADDRESS_CACHE[dexSwap][tokens[0].address][tokens[1].address]
   }
 
   public constructor(tokenAmountA: TokenAmount, tokenAmountB: TokenAmount, isUniswap: boolean = false) {
